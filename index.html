@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset="utf-8">
+        <title>Basic Scene</title>
+        <style>
+            body { margin: 0; overflow: hidden;}
+        </style>
+    </head>
+    <body>
+        <script src="https://cdn.jsdelivr.net/npm/three@0.134.0/build/three.min.js"></script>
+        <script src="https://cdn.jsdelivr.net/npm/camera-controls@1.33.1/dist/camera-controls.min.js"></script>
+        <script>
+            CameraControls.install( { THREE: THREE } );
+
+            const scene = new THREE.Scene();
+            const camera = new THREE.PerspectiveCamera( 75, window.innerWidth / window.innerHeight, 0.1, 1000 );
+            const clock = new THREE.Clock();
+
+            const renderer = new THREE.WebGLRenderer();
+            renderer.setSize( window.innerWidth, window.innerHeight );
+            document.body.appendChild( renderer.domElement );
+            const cameraControls = new CameraControls( camera, renderer.domElement );
+
+            const geometry = new THREE.BoxGeometry();
+            const material = new THREE.MeshBasicMaterial( { color: 0x00ff00 } );
+            const cube = new THREE.Mesh( geometry, material );
+            scene.add( cube );
+
+            camera.position.z = 5;
+            cameraControls.fitToSphere( scene, true );
+
+            const animate = function () {
+                requestAnimationFrame( animate );
+
+                const delta = clock.getDelta();
+                const hasControlsUpdated = cameraControls.update( delta );
+                renderer.render( scene, camera );
+            };
+
+            window.addEventListener( 'resize', onWindowResize, false );
+            function onWindowResize( event ) {
+                camera.aspect = window.innerWidth / window.innerHeight;
+                camera.updateProjectionMatrix();
+                renderer.setSize( window.innerWidth, window.innerHeight );
+                renderer.render( scene, camera );
+            }
+
+            animate();
+        </script>
+    </body>
+</html>
