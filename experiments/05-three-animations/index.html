@@ -41,7 +41,13 @@
                     .play();
             }
 
-            //
+            // NOTE: every action in actions must be unique otherwise
+            // it will not play the way you expect.
+            // For example: actions=['a','b','a','b','c']
+            // will ask 'a' to play at time 0 and then will ask 'a'
+            // to play after 'b' but it's the same 'a' so it's behavior
+            // will be unexpected (I forget it is just plays at the
+            // first time or the last time)
             function playActionSequence(actions){
                 // Stop and reset all the actions
                 for( let i=0, l=actions.length; i<l; i+=1 ){
@@ -149,6 +155,10 @@
             // The general idea is to set the weights of all the other
             // actions to 0 and set the weight of the desired action
             // to 1. Then play the desired action.
+            console.info('Instructions:')
+            console.info('To see an animation run one of the following 2 lines of code:')
+            console.info("actions['CubeMoveBackY'].weight = 0; actions['CubeMovePosY'].weight = 1; actions['CubeMovePosY'].play().reset();")
+            console.info("actions['CubeMoveBackY'].weight = 1; actions['CubeMovePosY'].weight = 0; actions['CubeMoveBackY'].play().reset();")
 
             const animate = function () {
                 requestAnimationFrame( animate );
