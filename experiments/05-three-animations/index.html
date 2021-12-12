@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset="utf-8">
+        <title>Basic Scene</title>
+        <style>
+            body { margin: 0; overflow: hidden;}
+        </style>
+    </head>
+    <body>
+        <script src="https://cdn.jsdelivr.net/npm/three@0.134.0/build/three.min.js"></script>
+        <script src="https://cdn.jsdelivr.net/npm/camera-controls@1.33.1/dist/camera-controls.min.js"></script>
+        <script src="https://cdn.jsdelivr.net/npm/three@0.134.0/examples/js/loaders/GLTFLoader.js"></script>
+        <script>
+            // https://threejs.org/manual/?q=gltf#en/load-gltf
+            function dumpObject(obj, lines = [], isLast = true, prefix = '') {
+                const localPrefix = isLast ? '└─' : '├─';
+                lines.push(`${prefix}${prefix ? localPrefix : ''}${obj.name || '*no-name*'} [${obj.type}]`);
+                const newPrefix = prefix + (isLast ? '  ' : '│ ');
+                const lastNdx = obj.children.length - 1;
+                obj.children.forEach((child, ndx) => {
+                    const isLast = ndx === lastNdx;
+                    dumpObject(child, lines, isLast, newPrefix);
+                });
+                return lines;
+            }
+        </script>
+        <script>
+            CameraControls.install( { THREE: THREE } );
+
+            // not very useful for the style of animations we have
+            function transitionAction(previousAction, nextAction, duration){
+                if( previousAction !== nextAction ){
+                    previousAction.fadeOut(duration);
+                }
+                nextAction
+                    .reset()
+                    .setEffectiveTimeScale( 1 )
+                    .setEffectiveWeight( 1 )
+                    .fadeIn( duration )
+                    .play();
+            }
+
+            //
+            function playActionSequence(actions){
+                // Stop and reset all the actions
+                for( let i=0, l=actions.length; i<l; i+=1 ){
+                    actions[0].stop();
+                }
+                // Play all of the actions at the correct time
+                actions[0].play();
+                let cumulativeTime = 0.0;
+                for( let i=1, l=actions.length; i<l; i+=1 ){
+                    cumulativeTime += actions[i-1].duration;
+                    // console.info(i);
+                    // console.info(actions);
+                    // console.info(actions[i]);
+                    actions[i].startAt(cumulativeTime).play();
+                }
+            }
+
+            function loadAnimationClip(mixer, animations, clipName){
+                var clip = THREE.AnimationClip.findByName(animations, clipName);
+                var action = mixer.clipAction(clip);
+                action.setLoop(THREE.LoopOnce);
+                action.clampWhenFinished = true;
+                action.enable = true;
+                //action.zeroSlopeAtEnd = false;
+                //action.zeroSlopeAtStart = false;
+                return action;
+            }
+
+            const scene = new THREE.Scene();
+            const camera = new THREE.PerspectiveCamera( 75, window.innerWidth / window.innerHeight, 0.1, 1000 );
+            const clock = new THREE.Clock();
+            var mixer;
+            var actions = {};
+            var globalGltf;
+
+            const renderer = new THREE.WebGLRenderer();
+            renderer.setSize( window.innerWidth, window.innerHeight );
+            document.body.appendChild( renderer.domElement );
+            const cameraControls = new CameraControls( camera, renderer.domElement );
+            camera.position.z = 5;
+
+            const geometry = new THREE.BoxGeometry();
+            const material = new THREE.MeshPhongMaterial( { color: 0x00ff00 } );
+            const cube = new THREE.Mesh( geometry, material );
+            scene.add( cube );
+
+            const light_color = 0xFFFFFF;
+            const light_intensity = 1.0;
+            const light = new THREE.AmbientLight(light_color, light_intensity);
+            scene.add(light);
+
+            const gltfLoader = new THREE.GLTFLoader();
+            // const url = 'example-01.glb';  // +Y up: off
+            const url = 'example-02.glb'
+            gltfLoader.load(url, (gltf) => {
+                console.info(gltf);
+                console.info(dumpObject(gltf.scene));
+                globalGltf = gltf;
+
+
+                var objectCube = gltf.scene.getObjectByName('Cube');
+                // Does it make a difference if we use the scene or the cube?
+                // Use the gltf scene
+                // mixer = new THREE.AnimationMixer(gltf.scene);
+                scene.add(gltf.scene);
+                // Use the cube
+                // mixer = new THREE.AnimationMixer(objectCube);
+                // scene.add(objectCube);
+                // Use the main scene as the animation mixer root
+                mixer = new THREE.AnimationMixer(scene);
+                // scene.add(objectCube);
+
+                // Example 1
+                // actions['CubeActionNegY'] = loadAnimationClip(mixer, gltf.animations, 'CubeActionNegY');
+                // actions['CubeActionPosY'] = loadAnimationClip(mixer, gltf.animations, 'CubeActionPosY');
+                // console.info(actions);
+
+                // Example 2
+                actions['CubeMoveBackY'] = loadAnimationClip(mixer, gltf.animations, 'CubeMoveBackY');
+                actions['CubeMovePosY'] = loadAnimationClip(mixer, gltf.animations, 'CubeMovePosY');
+                console.info(actions);
+
+                // To see the animations, open a js console and run:
+                // actionFall.stop(); actionFall.play();
+                // actionJump.stop(); actionJump.play();
+
+                renderer.render( scene, camera );
+                //scene.add(objectCube);
+                cameraControls.fitToSphere( cube, true );
+                animate();
+            });
+
+            // When a second animation is played on a mixer then the animations
+            // stop at the middle. I dont know if this has something to do with
+            // weights that we should be adjusting.
+
+            // Here is how to do it!
+            // Hm... this one doesn't see to be as reliable as just working with
+            // the weights as shown after the "OR"
+            // mixer.stopAllAction(); actions['CubeMoveBackY'].play().reset();
+            // mixer.stopAllAction(); actions['CubeMovePosY'].play().reset();
+            // OR: (just use this one)
+            // actions['CubeMoveBackY'].weight = 0; actions['CubeMovePosY'].weight = 1; actions['CubeMovePosY'].play().reset();
+            // actions['CubeMoveBackY'].weight = 1; actions['CubeMovePosY'].weight = 0; actions['CubeMoveBackY'].play().reset();
+            // The general idea is to set the weights of all the other
+            // actions to 0 and set the weight of the desired action
+            // to 1. Then play the desired action.
+
+            const animate = function () {
+                requestAnimationFrame( animate );
+                const delta = clock.getDelta();
+                const hasControlsUpdated = cameraControls.update( delta );
+                if(mixer){
+                    mixer.update(delta);
+                }
+                renderer.render( scene, camera );
+            };
+
+            window.addEventListener( 'resize', onWindowResize, false );
+            function onWindowResize( event ) {
+                camera.aspect = window.innerWidth / window.innerHeight;
+                camera.updateProjectionMatrix();
+                renderer.setSize( window.innerWidth, window.innerHeight );
+                renderer.render( scene, camera );
+            }
+        </script>
+    </body>
+</html>

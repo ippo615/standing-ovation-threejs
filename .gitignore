@@ -1,0 +1,2 @@
+# Ignore backup blender files (but allow regular .blend)
+*.blend?

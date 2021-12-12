@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset="utf-8">
+        <title>Basic Scene</title>
+        <style>
+            body { margin: 0; overflow: hidden;}
+        </style>
+    </head>
+    <body>
+        <script src="https://cdn.jsdelivr.net/npm/three@0.134.0/build/three.min.js"></script>
+        <script src="https://cdn.jsdelivr.net/npm/camera-controls@1.33.1/dist/camera-controls.min.js"></script>
+        <script src="https://cdn.jsdelivr.net/npm/three@0.134.0/examples/js/loaders/GLTFLoader.js"></script>
+        <script>
+            // https://threejs.org/manual/?q=gltf#en/load-gltf
+            function dumpObject(obj, lines = [], isLast = true, prefix = '') {
+                const localPrefix = isLast ? '└─' : '├─';
+                lines.push(`${prefix}${prefix ? localPrefix : ''}${obj.name || '*no-name*'} [${obj.type}]`);
+                const newPrefix = prefix + (isLast ? '  ' : '│ ');
+                const lastNdx = obj.children.length - 1;
+                obj.children.forEach((child, ndx) => {
+                    const isLast = ndx === lastNdx;
+                    dumpObject(child, lines, isLast, newPrefix);
+                });
+                return lines;
+            }
+        </script>
+        <script>
+            CameraControls.install( { THREE: THREE } );
+
+            // not very useful for the style of animations we have
+            function transitionAction(previousAction, nextAction, duration){
+                if( previousAction !== nextAction ){
+                    previousAction.fadeOut(duration);
+                }
+                nextAction
+                    .reset()
+                    .setEffectiveTimeScale( 1 )
+                    .setEffectiveWeight( 1 )
+                    .fadeIn( duration )
+                    .play();
+            }
+
+            //
+            function playActionSequence(actions){
+                // Stop and reset all the actions
+                for( let i=0, l=actions.length; i<l; i+=1 ){
+                    actions[0].stop();
+                }
+                // Play all of the actions at the correct time
+                actions[0].play();
+                let cumulativeTime = 0.0;
+                for( let i=1, l=actions.length; i<l; i+=1 ){
+                    cumulativeTime += actions[i-1].duration;
+                    // console.info(i);
+                    // console.info(actions);
+                    // console.info(actions[i]);
+                    actions[i].startAt(cumulativeTime).play();
+                }
+            }
+
+            const scene = new THREE.Scene();
+            const camera = new THREE.PerspectiveCamera( 75, window.innerWidth / window.innerHeight, 0.1, 1000 );
+            const clock = new THREE.Clock();
+            var mixer;
+            var actionFall, actionJump, actionFallEnd, actionJumpEnd;
+
+            const renderer = new THREE.WebGLRenderer();
+            renderer.setSize( window.innerWidth, window.innerHeight );
+            document.body.appendChild( renderer.domElement );
+            const cameraControls = new CameraControls( camera, renderer.domElement );
+            camera.position.z = 5;
+
+            const geometry = new THREE.BoxGeometry();
+            const material = new THREE.MeshPhongMaterial( { color: 0x00ff00 } );
+            const cube = new THREE.Mesh( geometry, material );
+            scene.add( cube );
+
+            const light_color = 0xFFFFFF;
+            const light_intensity = 1.0;
+            const light = new THREE.AmbientLight(light_color, light_intensity);
+            scene.add(light);
+
+            const gltfLoader = new THREE.GLTFLoader();
+            const url = '01-animated-cube.glb';  // +Y up: off
+            gltfLoader.load(url, (gltf) => {
+                console.info(gltf);
+                console.info(dumpObject(gltf.scene));
+
+                gltf.animations.forEach( ( clip ) => {
+                    console.info(clip);
+                    // mixer.clipAction( clip ).play();
+                } );
+                var objectCube = gltf.scene.getObjectByName('Cube');
+                // Does it make a difference if we use the scene or the cube?
+                // Use the gltf scene
+                // mixer = new THREE.AnimationMixer(gltf.scene);
+                // scene.add(gltf.scene);
+                // Use the cube
+                // mixer = new THREE.AnimationMixer(objectCube);
+                // scene.add(objectCube);
+                // Use the main scene as the animation mixer root
+                mixer = new THREE.AnimationMixer(scene);
+                scene.add(objectCube);
+                // console.info(gltf.scene.getObjectByName('CubeFall'));
+                var clipFall = THREE.AnimationClip.findByName(gltf.animations, 'CubeFall');
+                var clipJump = THREE.AnimationClip.findByName(gltf.animations, 'CubeJump');
+                var clipFallEnd = THREE.AnimationClip.findByName(gltf.animations, 'CubeFallEnd');
+                var clipJumpEnd = THREE.AnimationClip.findByName(gltf.animations, 'CubeJumpEnd');
+
+                // The following may show a better way to set things up
+                // https://threejs.org/examples/#webgl_animation_skinning_morph
+                // Then to switch to a different action:
+                // function fadeToAction( name, duration ) {
+                //     previousAction = activeAction;
+                //     activeAction = actions[ name ];
+                //     if ( previousAction !== activeAction ) {
+                //         previousAction.fadeOut( duration );
+                //     }
+                //     activeAction
+                //         .reset()
+                //         .setEffectiveTimeScale( 1 )
+                //         .setEffectiveWeight( 1 )
+                //         .fadeIn( duration )
+                //         .play();
+                // }
+
+                actionFall = mixer.clipAction(clipFall);
+                actionJump = mixer.clipAction(clipJump);
+                actionFallEnd = mixer.clipAction(clipFallEnd);
+                console.info('clipFallEnd');
+                console.info(clipFallEnd);
+                actionJumpEnd = mixer.clipAction(clipJumpEnd);
+                actionFall.setLoop(THREE.LoopOnce);
+                actionJump.setLoop(THREE.LoopOnce);
+                actionFall.clampWhenFinished = true;
+                actionJump.clampWhenFinished = true;
+                actionFall.zeroSlopeAtEnd = false;
+                actionFall.zeroSlopeAtStart = false;
+                actionJump.zeroSlopeAtEnd = false;
+                actionJump.zeroSlopeAtStart = false;
+
+                // To see the animations, open a js console and run:
+                // actionFall.stop(); actionFall.play();
+                // actionJump.stop(); actionJump.play();
+
+                renderer.render( scene, camera );
+                //scene.add(objectCube);
+                cameraControls.fitToSphere( cube, true );
+                animate();
+            });
+
+            const animate = function () {
+                requestAnimationFrame( animate );
+                const delta = clock.getDelta();
+                const hasControlsUpdated = cameraControls.update( delta );
+                if(mixer){
+                    mixer.update(delta);
+                }
+                renderer.render( scene, camera );
+            };
+
+            window.addEventListener( 'resize', onWindowResize, false );
+            function onWindowResize( event ) {
+                camera.aspect = window.innerWidth / window.innerHeight;
+                camera.updateProjectionMatrix();
+                renderer.setSize( window.innerWidth, window.innerHeight );
+                renderer.render( scene, camera );
+            }
+        </script>
+    </body>
+</html>

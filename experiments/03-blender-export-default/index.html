@@ -31,7 +31,6 @@
             const scene = new THREE.Scene();
             const camera = new THREE.PerspectiveCamera( 75, window.innerWidth / window.innerHeight, 0.1, 1000 );
             const clock = new THREE.Clock();
-            var mixer;
 
             const renderer = new THREE.WebGLRenderer();
             renderer.setSize( window.innerWidth, window.innerHeight );
@@ -45,35 +44,18 @@
             scene.add( cube );
 
             const light_color = 0xFFFFFF;
-            const light_intensity = 1;
+            const light_intensity = 1.0;
             const light = new THREE.AmbientLight(light_color, light_intensity);
             scene.add(light);
 
             const gltfLoader = new THREE.GLTFLoader();
-            const url = 'sample.glb';
+            // const url = '01-default-scene.glb';  // default +Y up: on
+            // const url = '02-light-exported.glb';
+            // const url = '03-material-shader.glb';
+            const url = '04-default-scene.glb';  // +Y up: off
             gltfLoader.load(url, (gltf) => {
                 console.info(gltf);
                 console.info(dumpObject(gltf.scene));
-                mixer = new THREE.AnimationMixer( gltf.scene );
-
-                
-                // list and play every animation
-                console.info(gltf.animations);
-                gltf.animations.forEach( ( clip ) => {
-                    console.info(clip);
-                    // mixer.clipAction( clip ).play();
-                } );
-                
-                // Play the first animation
-                // if(gltf.animations.length > 0){
-                //     mixer.clipAction(gltf.animations[0]).play();
-                // }
-
-                // Play a specific animation
-                const clip = THREE.AnimationClip.findByName( gltf.animations, 'sit.001' );
-                const action = mixer.clipAction( clip );
-                // action.setLoop(THREE.LoopOnce);
-                action.play();
 
                 scene.add(gltf.scene);
                 renderer.render( scene, camera );
@@ -85,9 +67,6 @@
                 requestAnimationFrame( animate );
                 const delta = clock.getDelta();
                 const hasControlsUpdated = cameraControls.update( delta );
-                if( mixer ){
-                    mixer.update(delta);
-                }
                 renderer.render( scene, camera );
             };
 
