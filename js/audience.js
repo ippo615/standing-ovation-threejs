@@ -123,12 +123,12 @@ class Audience {
                     if(person.seated){
                         if(person.probability_spontaneous_standing > spontaneous_score){
                             person.seated = false
-						    person.value = 1.0
+                            person.value = 1.0
                         }
                     }else if( ! person.seated ){
                         if(person.probability_spontaneous_sitting > spontaneous_score){
                             person.seated = true
-						    person.value = 0.0
+                            person.value = 0.0
                         }
                     }
                 }
